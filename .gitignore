@@ -1,0 +1,6 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+# 真实通知含个人信息，脱敏前不要上传
+data/notices_raw.csv
