@@ -1,6 +1,8 @@
-"""批量评测：读取 data/notices.csv（id, source, text）和 data/gold_labels.csv（标准答案），
-让模型跑一遍，生成 data/results.csv：模型答案和标准答案并排，日期自动判定，其余你手动标注。
-运行：python src/run_eval.py v0.2   （v0.2 是这次评测的版本标签，结果会存成 data/results_v0.2.csv）
+"""批量评测。
+用法：
+  python src/run_eval.py v0.2          # 开发集：data/notices.csv + data/gold_labels.csv  -> data/results_v0.2.csv
+  python src/run_eval.py v0.2 test     # 测试集：data/test_notices.csv + data/test_gold_labels.csv -> data/results_v0.2_test.csv
+生成的结果表里，模型答案和标准答案并排，日期自动判定，其余你手动标注。
 """
 import csv
 import re
@@ -17,12 +19,19 @@ def read_csv(path):
 
 
 def judge_date(model_deadline: str, gold_deadline: str) -> str:
-    """只比较日期部分（YYYY-MM-DD）。标准答案为“未提及”时，模型也必须答“未提及”。"""
+    """只比较日期部分（YYYY-MM-DD）。
+    - 标准答案以“人工判定”开头：返回“人工”，不计入自动正确率。
+    - 标准答案以“未提及”开头：模型答“未提及”算对；模型给出的日期若出现在标准答案的括号说明里也算对。
+    """
     model_deadline, gold_deadline = str(model_deadline), str(gold_deadline)
-    if gold_deadline.startswith("未提及"):
-        return "对" if "未提及" in model_deadline else "错"
-    g = DATE_RE.search(gold_deadline)
+    if gold_deadline.startswith("人工判定"):
+        return "人工"
     m = DATE_RE.search(model_deadline)
+    if gold_deadline.startswith("未提及"):
+        if "未提及" in model_deadline:
+            return "对"
+        return "对" if m and m.group() in DATE_RE.findall(gold_deadline) else "错"
+    g = DATE_RE.search(gold_deadline)
     if not g or not m:
         return "错"
     return "对" if g.group() == m.group() else "错"
@@ -30,9 +39,15 @@ def judge_date(model_deadline: str, gold_deadline: str) -> str:
 
 def main():
     tag = sys.argv[1] if len(sys.argv) > 1 else "latest"
-    out_path = f"data/results_{tag}.csv"
-    notices = read_csv("data/notices.csv")
-    gold = {g["id"]: g for g in read_csv("data/gold_labels.csv")}
+    dataset = sys.argv[2] if len(sys.argv) > 2 else "dev"
+    if dataset == "test":
+        notices_path, gold_path = "data/test_notices.csv", "data/test_gold_labels.csv"
+        out_path = f"data/results_{tag}_test.csv"
+    else:
+        notices_path, gold_path = "data/notices.csv", "data/gold_labels.csv"
+        out_path = f"data/results_{tag}.csv"
+    notices = read_csv(notices_path)
+    gold = {g["id"]: g for g in read_csv(gold_path)}
     out = []
     for row in notices:
         try:
@@ -66,7 +81,9 @@ def main():
         w.writerows(out)
 
     ok = sum(1 for o in out if o["日期自动判定"] == "对")
-    print(f"已生成 {out_path}；日期自动判定：{ok}/{len(out)} 条正确")
+    manual = sum(1 for o in out if o["日期自动判定"] == "人工")
+    judged = len(out) - manual
+    print(f"已生成 {out_path}；日期自动判定：{ok}/{judged} 条正确（另有 {manual} 条需人工判断）")
 
 
 if __name__ == "__main__":
