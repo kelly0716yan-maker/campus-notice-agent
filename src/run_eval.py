@@ -1,9 +1,10 @@
 """批量评测：读取 data/notices.csv（id, source, text）和 data/gold_labels.csv（标准答案），
 让模型跑一遍，生成 data/results.csv：模型答案和标准答案并排，日期自动判定，其余你手动标注。
-运行：python src/run_eval.py
+运行：python src/run_eval.py v0.2   （v0.2 是这次评测的版本标签，结果会存成 data/results_v0.2.csv）
 """
 import csv
 import re
+import sys
 
 from extractor import extract
 
@@ -28,6 +29,8 @@ def judge_date(model_deadline: str, gold_deadline: str) -> str:
 
 
 def main():
+    tag = sys.argv[1] if len(sys.argv) > 1 else "latest"
+    out_path = f"data/results_{tag}.csv"
     notices = read_csv("data/notices.csv")
     gold = {g["id"]: g for g in read_csv("data/gold_labels.csv")}
     out = []
@@ -57,13 +60,13 @@ def main():
         })
         print("done", row["id"])
 
-    with open("data/results.csv", "w", newline="", encoding="utf-8-sig") as f:
+    with open(out_path, "w", newline="", encoding="utf-8-sig") as f:
         w = csv.DictWriter(f, fieldnames=list(out[0].keys()))
         w.writeheader()
         w.writerows(out)
 
     ok = sum(1 for o in out if o["日期自动判定"] == "对")
-    print(f"已生成 data/results.csv；日期自动判定：{ok}/{len(out)} 条正确")
+    print(f"已生成 {out_path}；日期自动判定：{ok}/{len(out)} 条正确")
 
 
 if __name__ == "__main__":
