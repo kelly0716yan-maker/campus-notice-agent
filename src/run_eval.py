@@ -1,8 +1,11 @@
 """批量评测。
 用法：
-  python src/run_eval.py v0.2          # 开发集：data/notices.csv + data/gold_labels.csv  -> data/results_v0.2.csv
-  python src/run_eval.py v0.2 test     # 测试集：data/test_notices.csv + data/test_gold_labels.csv -> data/results_v0.2_test.csv
-生成的结果表里，模型答案和标准答案并排，日期自动判定，其余你手动标注。
+  python src/run_eval.py v0.4              # 开发集：data/notices.csv + data/gold_labels.csv
+  python src/run_eval.py v0.4 test         # 测试集：data/test_notices.csv + data/test_gold_labels.csv
+  python src/run_eval.py v0.4 test2        # 新测试集：data/test2_notices.csv + data/test2_gold_labels.csv
+第一个参数是版本标签，同时决定使用哪一版提示词（v0.3、v0.4）。
+结果保存到 data/results_<版本>[_数据集].csv，模型答案和标准答案并排，日期自动判定，其余你手动标注。
+如果通知表里有 notice_date 列（通知发出日期），“今天/本周”这类相对时间会按那一天换算。
 """
 import csv
 import re
@@ -40,18 +43,18 @@ def judge_date(model_deadline: str, gold_deadline: str) -> str:
 def main():
     tag = sys.argv[1] if len(sys.argv) > 1 else "latest"
     dataset = sys.argv[2] if len(sys.argv) > 2 else "dev"
-    if dataset == "test":
-        notices_path, gold_path = "data/test_notices.csv", "data/test_gold_labels.csv"
-        out_path = f"data/results_{tag}_test.csv"
-    else:
+    if dataset == "dev":
         notices_path, gold_path = "data/notices.csv", "data/gold_labels.csv"
         out_path = f"data/results_{tag}.csv"
+    else:
+        notices_path, gold_path = f"data/{dataset}_notices.csv", f"data/{dataset}_gold_labels.csv"
+        out_path = f"data/results_{tag}_{dataset}.csv"
     notices = read_csv(notices_path)
     gold = {g["id"]: g for g in read_csv(gold_path)}
     out = []
     for row in notices:
         try:
-            r = extract(row["text"], row.get("source", "未知"))
+            r = extract(row["text"], row.get("source", "未知"), today=row.get("notice_date") or None, prompt_version=tag)
         except Exception as e:
             r = {"title": f"出错：{e}"}
         g = gold.get(row["id"], {})
@@ -68,6 +71,7 @@ def main():
             "模型_行动": r.get("action", ""),
             "标准_行动": g.get("gold_action", ""),
             "难点备注": g.get("难点备注", ""),
+            "易混淆点": g.get("易混淆点", ""),
             "对象是否正确(手填:对/错)": "",
             "行动是否正确(手填:对/错)": "",
             "错在哪(手填)": "",
