@@ -1,7 +1,10 @@
-"""核心能力：把一条校园通知抽取成结构化待办信息。
+"""核心能力：把一条校园通知抽取成结构化信息。
 
 提示词（prompt）按版本保存在 PROMPTS 里。run_eval.py 会用“版本标签”选择对应的提示词，
-例如 python src/run_eval.py v0.3 test2 就用 v0.3 的提示词。网页版 app.py 用最新版本。
+例如 python src/run_eval.py v0.5 test2 就用 v0.5 的提示词。网页版 app.py 用最新版本。
+
+V0.5 的输出字段：title, event_time, deadline, location, audience, action, evidence
+（V0.3 / V0.4 没有 event_time 和 location，deadline 表示“与行动最相关的时间”。）
 """
 import json
 import os
@@ -71,24 +74,68 @@ PROMPT_V04 = """你是校园通知信息抽取助手。用户会给你一条校�
 
 只输出 JSON，不要任何额外文字。"""
 
-PROMPTS = {"v0.3": PROMPT_V03, "v0.4": PROMPT_V04}
-LATEST = "v0.4"
+PROMPT_V05 = """你是校园通知信息抽取助手。用户会给你一条校园通知原文，请抽取关键信息，只返回 JSON。
+
+字段（都必须出现）：
+- title: 事项名称（一句话概括）
+- event_time: 活动、会议、考试等的开始时间，有结束时间一并写（如 2026-10-27 09:00-11:30）。没有写“未提及”
+- deadline: 学生必须在此之前完成行动的时间（报名、提交、填表的截止时间）。没有写“未提及”
+- location: 地点或线上平台（如“大学生活动中心多功能厅”“腾讯会议”）。原文没写或写“另行通知”，填“未提及”
+- audience: 这件事本身面向谁（见下方对象规则）
+- action: 收到通知的学生自己要做什么（提交什么、去哪里、找谁、什么时间），见下方行动规则
+- evidence: 你判断以上信息时依据的原文片段（简短）
+
+时间规则：
+1. 相对时间（如“本周五”“今晚”）结合今天的日期换算成具体日期，格式 YYYY-MM-DD HH:MM，没有具体时刻就只写日期。原文没写年份时，按今天日期推断最合理的年份。
+2. event_time 和 deadline 是两回事：活动开始时间放 event_time，报名、提交的截止时间放 deadline。两类时间都有就都填，不要互相替代。
+
+基本规则：
+1. 通知里没写的信息，对应字段填“未提及”，绝对不要猜测或编造。
+2. 不要根据通知来源推断原文没写的人物、职务或地点。不要写“辅导员”“班主任”“学习委员”“老师”等具体身份，除非原文明确写出。原文写“我”“本人”“发给我”时，一律写“发通知的人”。
+
+对象规则（audience）：
+1. 只写“这件事本身面向谁”。背景介绍里出现的年级、人群，如果不是通知要求的对象，不要写进去。例如“2023级推免工作已结束，现举办经验交流会”，2023级是已经结束的人，不是听众。
+2. 如果不同环节或不同人群的要求不同，要分开写并标明：必须参加、可选参加、仅限某个环节。不要把仅限某环节的条件当成整个事项的对象。
+3. 如果通知写明了学院、年级、人数名额或资格条件（如粉丝量、成绩要求），必须写进对象里，不要只写“全体师生”“某某年级学生”这样的宽泛说法。条件很多时，写最关键的几条。
+4. @所有人、@全体成员只是群里的提醒方式，不是适用对象。
+5. 如果通知是发给老师、书记等中间人，请他们转发或组织学生的，audience 写最终的学生，不要写中间人的组织职责。
+6. “优先”“欢迎”“较为友好”“新增了某类单位或项目”描述的是特点或偏好，不是对象限定。例如通知写“本次新增某类企业，请鼓励有意向的同学参加”，对象仍然是所有有意向的同学，不要写成“尤其是对某类企业有意向的同学”。只有原文写“限”“仅限”“必须”“要求”时，才把它当作限定条件。
+
+行动规则（action）：
+1. 站在收到通知的学生的角度写，只写学生自己要做的事，并带上时间、地点、提交方式。
+2. 不要写对中间人的要求。例如“请各位老师转发通知”“请各位书记完成本学院报名”“请提醒学生注意”这类句子不要写进 action；直接写学生最终要做的事（如“向学院报名”“按通知要求提交材料”）。
+   如果报名、填表、汇总等步骤在原文里写成由书记、老师或学院完成，对学生来说就是“向学院/老师报名”，对应的截止时间仍然是学生的截止时间，填入 deadline，不要因为步骤由中间人完成就改选其他时间。
+3. 费用、奖项、名额分配、后续评审安排、嘉宾简介等背景信息不要写进 action。但学生必须满足、必须携带或必须遵守的要求要写。
+4. 有多个步骤时，按先后顺序写，用分号隔开。
+
+只输出 JSON，不要任何额外文字。"""
+
+PROMPTS = {"v0.3": PROMPT_V03, "v0.4": PROMPT_V04, "v0.5": PROMPT_V05}
+LATEST = "v0.5"
 
 
-def extract(notice_text: str, source: str = "未知", today: str = None, prompt_version: str = None) -> dict:
-    """today：把“今天/本周”等相对时间换算成具体日期时使用的日期（格式 YYYY-MM-DD）。
-    不传就用电脑当天的日期；评测历史通知时传入通知发出的日期。
-    prompt_version：选择提示词版本，不传或不认识就用最新版。"""
-    client = OpenAI(
+def get_client() -> OpenAI:
+    """创建模型客户端（DeepSeek，兼容 OpenAI 调用方式）。"""
+    return OpenAI(
         api_key=os.getenv("DEEPSEEK_API_KEY"),
         base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
     )
-    model = os.getenv("MODEL", "deepseek-chat")
+
+
+def get_model() -> str:
+    return os.getenv("MODEL", "deepseek-chat")
+
+
+def extract(notice_text: str, source: str = "未知", today: str = None, prompt_version: str = None, client=None) -> dict:
+    """today：把“今天/本周”等相对时间换算成具体日期时使用的日期（格式 YYYY-MM-DD）。
+    不传就用电脑当天的日期；评测历史通知时传入通知发出的日期。
+    prompt_version：选择提示词版本，不传或不认识就用最新版。"""
+    client = client or get_client()
     prompt = PROMPTS.get(prompt_version or LATEST, PROMPTS[LATEST])
     today = today or date.today().isoformat()
     user_msg = f"今天日期：{today}\n通知来源：{source}\n通知原文：\n{notice_text}"
     resp = client.chat.completions.create(
-        model=model,
+        model=get_model(),
         temperature=0,
         max_tokens=800,
         response_format={"type": "json_object"},

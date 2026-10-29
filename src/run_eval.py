@@ -24,20 +24,28 @@ def read_csv(path):
 def judge_date(model_deadline: str, gold_deadline: str) -> str:
     """只比较日期部分（YYYY-MM-DD）。
     - 标准答案以“人工判定”开头：返回“人工”，不计入自动正确率。
-    - 标准答案以“未提及”开头：模型答“未提及”算对；模型给出的日期若出现在标准答案的括号说明里也算对。
+    - 标准答案以“未提及”开头：模型没给出日期并答“未提及”算对；模型给出的日期若出现在标准答案的括号说明里也算对。
     """
     model_deadline, gold_deadline = str(model_deadline), str(gold_deadline)
     if gold_deadline.startswith("人工判定"):
         return "人工"
     m = DATE_RE.search(model_deadline)
     if gold_deadline.startswith("未提及"):
-        if "未提及" in model_deadline:
-            return "对"
-        return "对" if m and m.group() in DATE_RE.findall(gold_deadline) else "错"
+        if m:
+            return "对" if m.group() in DATE_RE.findall(gold_deadline) else "错"
+        return "对" if "未提及" in model_deadline else "错"
     g = DATE_RE.search(gold_deadline)
     if not g or not m:
         return "错"
     return "对" if g.group() == m.group() else "错"
+
+
+def combine_time(r: dict) -> str:
+    """V0.5 把时间拆成 deadline（截止）和 event_time（活动）。合并成一个字符串，截止在前，
+    这样自动判定时优先比较截止日期；V0.3/V0.4 只有 deadline，原样返回。"""
+    if "event_time" in r or "location" in r:
+        return f"截止：{r.get('deadline', '未提及')}；活动：{r.get('event_time', '未提及')}"
+    return r.get("deadline", "")
 
 
 def main():
@@ -63,9 +71,10 @@ def main():
             "source": row.get("source", ""),
             "模型_事项": r.get("title", ""),
             "标准_事项": g.get("gold_title", ""),
-            "模型_时间": r.get("deadline", ""),
+            "模型_时间": combine_time(r),
+            "模型_地点": r.get("location", ""),
             "标准_时间": g.get("gold_deadline", ""),
-            "日期自动判定": judge_date(r.get("deadline", ""), g.get("gold_deadline", "")),
+            "日期自动判定": judge_date(combine_time(r), g.get("gold_deadline", "")),
             "模型_对象": r.get("audience", ""),
             "标准_对象": g.get("gold_audience", ""),
             "模型_行动": r.get("action", ""),

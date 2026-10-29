@@ -4,3 +4,6 @@ __pycache__/
 .venv/
 # 真实通知含个人信息，脱敏前不要上传
 data/notices_raw.csv
+# 个人画像和待办含个人信息，只保存在本机
+data/profile.json
+data/todos.json
