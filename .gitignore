@@ -7,3 +7,8 @@ data/notices_raw.csv
 # 个人画像和待办含个人信息，只保存在本机
 data/profile.json
 data/todos.json
+
+# 微信小程序 / 云函数
+node_modules/
+project.private.config.json
+# 云函数密钥一律配在云开发控制台的环境变量；本地任何 .env 文件已被上方规则忽略
