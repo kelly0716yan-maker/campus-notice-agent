@@ -1,39 +1,55 @@
-# HANDOFF — 微信小程序 MVP 开发交接（2026-11-05）
+# HANDOFF — 微信小程序 MVP 开发交接
 
-## 做了什么
+> 更新时间：2026-11-05。状态：**代码开发完成、本地测试通过，暂停；待部署与真机验证。**
 
-- 在 `wechat-miniprogram/` 下新建原生小程序 + 微信云开发项目（单页），功能范围严格按 `docs/miniprogram-spec.md`：
-  - 顶部隐私提示、3000 字上限输入框（超长提示并截断）、提取按钮（loading / 友好错误 + 重试，不白屏）；
-  - 结果卡片 6 字段（“未提及”灰色显示）、AI 生成提醒、“原文依据”默认折叠可展开、“复制成文字”（截止时间在前、跳过“未提及”行，已接入剪贴板）；
-  - 反馈：👍 准确 / 👎 有误（弹可选的“哪里不对”输入框）+“允许把这条通知（已去掉个人信息）用于改进产品”勾选框（默认不勾，勾选且提交反馈才保存原文）；
-  - 埋点：启动 open、提取成功 extract、点复制 copy。
-- 云函数 3 个：
-  - `extract`：PROMPT_V05（一字不改复制自 `src/extractor.py`，HEAD 5b9fd16）→ `cloudfunctions/extract/prompt.js`；校验空/超长、每日 30 次限流（usage_daily）、调 DeepSeek（temperature 0 / max_tokens 800 / json_object）、解析失败重试 1 次、字段缺失补“未提及”；API Key 只读环境变量 `DEEPSEEK_API_KEY`。
-  - `feedback`：服务端强制只有 consent===true 才保存 text/result。
-  - `track`：open/extract/copy 白名单，不存任何通知内容。
-- 测试（本地已跑通）：
-  - `tests/extract-core.test.js`：11 项单元测试全过（mock DeepSeek，不需 Key/云环境）；
-  - `tests/e2e-extract.js`：真实调用 DeepSeek，用 `data/test2_notices.csv` 第 3/8/10 条验收，断言全过（第 3 条双“未提及”；第 8 条 event_time=2026-01-16 15:00、地点含腾讯会议；第 10 条 deadline=2026-03-09 17:00）。
-- git：5 个本地提交（21cf476 → 最新），**未 push**（由你在 GitHub Desktop 里推送）。`.gitignore` 增加了 `node_modules/`、`project.private.config.json`；密钥不进代码、不进提交。
+## 1. 已完成的部分和提交记录
 
-## 没做什么（按 spec 明确排除或留待后续）
+功能范围严格按 `docs/miniprogram-spec.md`（已入库），代码全部在 `wechat-miniprogram/` 下：
 
-- 用户画像、相关性判断、日历文件、待办列表、登录注册、分享、历史记录。
-- 前端 UI 尚未在微信开发者工具/真机上验证（本机无法运行 GUI）；云函数未部署，限流与集合写入只在逻辑层面测试，未在云环境实测。
-- 限流的读-改-写存在小并发窗口（两人同时点可能多一两次调用），MVP 可接受。
+- **小程序前端**（原生框架，单页 `pages/index`）：隐私提示、3000 字上限输入（超长提示并截断）、提取按钮（loading、友好错误 + 重试，不白屏）、结果卡片 6 字段（“未提及”灰色显示、AI 生成提醒）、原文依据默认折叠可展开、复制成文字（截止时间在前、跳过“未提及”行）、反馈（👍/👎 + 可选的“哪里不对”输入 + “允许用于改进”勾选框，默认不勾）。
+- **云函数 3 个**：
+  - `extract`：PROMPT_V05（一字不改复制自 `src/extractor.py` HEAD 5b9fd16，见 `cloudfunctions/extract/prompt.js`）；校验空/超长；每日 30 次限流（`usage_daily`）；调 DeepSeek（temperature 0 / max_tokens 800 / json_object）；解析失败重试 1 次；字段缺失补“未提及”；API Key 只读环境变量 `DEEPSEEK_API_KEY`。
+  - `feedback`：服务端强制 `consent===true` 才保存 text/result，不信任前端。
+  - `track`：open/extract/copy 白名单，只存事件，不存通知内容。
+- **测试**（均已跑通）：
+  - `tests/extract-core.test.js`：11 项单元测试全过（mock DeepSeek，无需 Key/云环境）。
+  - `tests/e2e-extract.js`：真实调用 DeepSeek，`data/test2_notices.csv` 第 3/8/10 条验收断言全过（第 3 条双“未提及”；第 8 条 event_time=2026-01-16 15:00、地点含“腾讯会议”；第 10 条 deadline=2026-03-09 17:00）。
 
-## 需要手动操作（下一步按顺序做）
+**本地提交记录**（都在 main 分支，**均未 push**，由你在 GitHub Desktop 里推送）：
 
-1. 微信开发者工具「导入项目」→ `wechat-miniprogram/`，填真实 AppID。
-2. 开通云开发；若用专用环境，把环境 ID 填进 `miniprogram/app.js` 的 `CLOUD_ENV`。
-3. 控制台创建集合 `events` / `feedback` / `usage_daily`（权限“仅创建者可读写”）。
-4. 三个云函数右键「上传并部署：云端安装依赖」。
-5. `extract` 云函数：配置环境变量 `DEEPSEEK_API_KEY`；**超时时间改 20–30 秒**。
-6. 小程序后台补「用户隐私保护指引」（使用记录、用户主动提交的反馈）。
-7. 开发者工具里真机预览自测一遍（提取、错误场景、复制到备忘录、反馈），再上传为**体验版**；「成员管理」加体验者。
-8. DeepSeek 平台给 Key 设用量上限。
+| 提交 | 内容 |
+|---|---|
+| `21cf476` | 小程序骨架：项目配置、应用外壳与需求说明（docs/miniprogram-spec.md） |
+| `06a9410` | extract 云函数：PROMPT_V05、校验、每日限流、解析重试（含单元测试与真实验收脚本） |
+| `1ded254` | 提取页：输入、提取、结果卡片、原文依据、复制成文字 |
+| `782336b` | feedback 与 track 云函数：反馈（同意才存原文）与埋点 |
+| `3a9b5e9` | docs：小程序 README（部署步骤）与 HANDOFF 交接文档 |
+| `（本次）` | docs：更新 HANDOFF（部署进度与待办清单）+ .gitignore 忽略 .Rhistory |
 
-## 下次从哪里继续
+**已由你完成、但还没提交到 git 的工作区改动**：`project.config.json` 已填真实 AppID（wx39a710cd5116b6c3，开发者工具自动补全了设置）；`miniprogram/app.js` 已填云环境 ID（`cloud1-d1gy2jrfu507eee37`）。提交时记得带上这两个文件。
 
-- 部署跑通后，回来看 `data/feedback` 的点赞/点踩数据（点踩率）和 `data/events` 的复用率（一周内有 2 天以上使用的用户数）。
-- 提示词迭代仍走 `src/extractor.py` + `src/run_eval.py`；改完 PROMPT_V05 后要重新生成 `cloudfunctions/extract/prompt.js`（用同一段提取逻辑，见该文件头部注释）。
+**注意**：`miniprogram/` 下曾混入 RStudio 的 `.Rhistory`，已加入 .gitignore 且不会提交。
+
+## 2. 还没做的手动步骤（按顺序勾）
+
+- [x] ~~填 AppID、填云环境 ID~~（已做，待提交，见上）
+- [ ] 确认云开发环境已开通，环境 ID 与 `app.js` 里的 `CLOUD_ENV`（`cloud1-d1gy2jrfu507eee37`）一致
+- [ ] 云开发控制台 → 数据库：创建集合 `events`、`feedback`、`usage_daily`（权限“仅创建者可读写”）
+- [ ] 开发者工具里对 `cloudfunctions/` 下三个函数（extract / feedback / track）分别右键「上传并部署：云端安装依赖」
+- [ ] 云开发控制台 → 云函数 → `extract`：配置环境变量 `DEEPSEEK_API_KEY`（密钥只放这里，不进代码、不进 git）；**超时时间改 20–30 秒**（默认太短，大模型没返回就会被掐断）
+- [ ] 开发者工具模拟器 + **真机预览**自测一遍：
+  - 正常提取三条测试通知（可用 `data/test2_notices.csv` 第 3/8/10 条）；
+  - 错误场景：空输入、超 3000 字、断网、未配 Key 时都不白屏、有友好提示；
+  - 复制成文字后能粘贴到手机备忘录/提醒事项；
+  - 反馈 👍/👎、勾选/不勾选“允许用于改进”，到数据库确认：**不勾选时查不到任何通知内容**；
+  - 连点 31 次验证限流提示“今天的次数用完了，明天再来”。
+- [ ] 小程序后台（mp.weixin.qq.com）补「用户隐私保护指引」：说明收集使用记录、用户主动提交的反馈
+- [ ] 上传代码 → 设为**体验版**（开发版只有开发者自己能打开）；「成员管理」里给 10–20 位试用者加体验者权限（名额上限以后台显示为准）
+- [ ] DeepSeek 平台给 API Key 设用量上限，避免意外超支
+
+## 3. 下次从哪里继续
+
+1. **部署验证**：跑完第 2 节的清单，真机确认验收标准（spec 第 78–82 行）全部满足后，把 app.js / project.config.json 等部署改动提交，推送到 GitHub。
+2. **看数据**（体验版跑一两周后）：`events` 集合算复用率（一周内有 2 天以上使用的用户数）；`feedback` 集合算点踩率、收集“哪里不对”的原因；勾选“允许用于改进”的反馈（含原文和 result）作为评测集扩充 `data/test2_notices.csv`。
+3. **提示词迭代**：仍走 `src/extractor.py` + `src/run_eval.py` 的评测流程；改完 PROMPT_V05 后要重新生成 `cloudfunctions/extract/prompt.js`（提取方式见该文件头部注释），并在 `extract/index.js` 里同步 `prompt_version`。
+4. **已知待改进项**（MVP 刻意不做）：限流计数有并发窗口（两人同时点可能多一两次调用，可接受）；无历史记录；未做用户画像/相关性判断（见 agent-design.md 的后续规划）。

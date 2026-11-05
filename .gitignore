@@ -11,4 +11,6 @@ data/todos.json
 # 微信小程序 / 云函数
 node_modules/
 project.private.config.json
+# RStudio 等工具误生成的杂项文件
+.Rhistory
 # 云函数密钥一律配在云开发控制台的环境变量；本地任何 .env 文件已被上方规则忽略
