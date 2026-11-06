@@ -7,6 +7,7 @@ Agent 判断为“高”或“中”算相关，“低”算不相关。结果�
 评测时不写待办文件，也不保存日程。
 """
 import csv
+import io
 import sys
 
 from agent import process_notice
@@ -15,8 +16,14 @@ from user_profile import is_filled, load_profile
 
 
 def read_csv(path):
-    with open(path, encoding="utf-8-sig") as f:
-        return list(csv.DictReader(f))
+    """优先按 UTF-8 读取；用 Excel 另存的 CSV 在中文 Windows 上常常是 GBK，读不出来时改用 GB18030。"""
+    raw = open(path, "rb").read()
+    for enc in ("utf-8-sig", "gb18030"):
+        try:
+            return list(csv.DictReader(io.StringIO(raw.decode(enc))))
+        except UnicodeDecodeError:
+            continue
+    raise SystemExit(f"无法读取 {path}：请用“CSV UTF-8”格式保存")
 
 
 def main():
