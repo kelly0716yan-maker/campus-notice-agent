@@ -1,5 +1,5 @@
 const app = getApp();
-const { maskLinks } = require('../../utils/mask-links');
+const { extractLinks, maskLinks } = require('../../utils/mask-links');
 
 // 云函数错误码 → 友好文案（找不到对应码时用兜底文案）
 const ERROR_MESSAGES = {
@@ -22,6 +22,8 @@ Page({
     consent: false,
     feedbackSent: false,
     maxLength: 3000,
+    links: [], // 原文里的链接列表：只存页面内存，用于输入框下方提示
+    resultLinks: [], // 提取时链接列表的快照，用于结果卡片展示
   },
 
   onInput(e) {
@@ -30,7 +32,8 @@ Page({
     if (text.length >= this.data.maxLength && this.data.text.length < this.data.maxLength) {
       wx.showToast({ title: '最多 3000 字，超出部分已截断', icon: 'none' });
     }
-    this.setData({ text });
+    // 实时检测原文里的链接，仅存页面内存，不发往云函数、不落库
+    this.setData({ text, links: extractLinks(text) });
   },
 
   // 手机当天的日期，格式 YYYY-MM-DD
@@ -54,6 +57,7 @@ Page({
       showEvidence: false,
       consent: false,
       feedbackSent: false,
+      resultLinks: [],
     });
     try {
       // 发送前把 http(s) 链接替换成 [链接]：链接可能带编辑权限，提取用不到
@@ -63,7 +67,12 @@ Page({
       });
       const r = res && res.result;
       if (r && r.ok) {
-        this.setData({ result: r.data, promptVersion: r.prompt_version || '' });
+        // 链接列表只存页面内存，供结果卡片展示；发给云函数的 text 是替换后的版本
+        this.setData({
+          result: r.data,
+          promptVersion: r.prompt_version || '',
+          resultLinks: extractLinks(this.data.text),
+        });
         app.track('extract');
       } else {
         const code = r && r.code;
@@ -76,6 +85,18 @@ Page({
     } finally {
       this.setData({ loading: false });
     }
+  },
+
+  // 点按结果卡片里的链接：复制该链接（链接只在前端内存，不落库、不上传）
+  onCopyLink(e) {
+    const link = e.currentTarget.dataset.link;
+    if (!link) return;
+    wx.setClipboardData({
+      data: link,
+      success: () => {
+        wx.showToast({ title: '已复制', icon: 'success' });
+      },
+    });
   },
 
   toggleEvidence() {
@@ -121,8 +142,9 @@ Page({
       prompt_version: this.data.promptVersion,
     };
     // 只有勾选“允许用于改进产品”才随反馈提交原文和结果（云函数侧也会强制校验）
+    // 保存的原文同样是链接替换成 [链接] 的版本，原链接不上传
     if (this.data.consent) {
-      payload.text = this.data.text;
+      payload.text = maskLinks(this.data.text);
       payload.result = this.data.result;
     }
     try {

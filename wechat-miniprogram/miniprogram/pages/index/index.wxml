@@ -11,6 +11,7 @@
       bindinput="onInput"
     />
     <view class="char-count {{text.length >= maxLength ? 'full' : ''}}">{{text.length}}/{{maxLength}}</view>
+    <view class="link-hint" wx:if="{{links.length > 0}}">检测到 {{links.length}} 个链接，发送前会自动隐藏，不会上传</view>
     <button
       class="primary-btn"
       bindtap="onExtract"
@@ -57,6 +58,17 @@
     <view class="evidence" wx:if="{{showEvidence}}">{{result.evidence}}</view>
 
     <button class="copy-btn" bindtap="onCopy">复制成文字</button>
+
+    <view class="result-links" wx:if="{{resultLinks.length > 0}}">
+      <view class="result-links-title">📎 通知里有 {{resultLinks.length}} 个链接</view>
+      <view
+        class="result-link"
+        wx:for="{{resultLinks}}"
+        wx:key="*this"
+        data-link="{{item}}"
+        bindtap="onCopyLink"
+      >{{item}}</view>
+    </view>
   </view>
 
   <view class="card" wx:if="{{result}}">

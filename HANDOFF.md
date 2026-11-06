@@ -6,14 +6,14 @@
 
 功能范围严格按 `docs/miniprogram-spec.md`（已入库），代码全部在 `wechat-miniprogram/` 下：
 
-- **小程序前端**（原生框架，单页 `pages/index`）：隐私提示、3000 字上限输入（超长提示并截断）、提取按钮（loading、友好错误 + 重试，不白屏）、结果卡片 6 字段（“未提及”灰色显示、AI 生成提醒）、原文依据默认折叠可展开、复制成文字（截止时间在前、跳过“未提及”行）、反馈（👍/👎 + 可选的“哪里不对”输入 + “允许用于改进”勾选框，默认不勾）。发送前把 http(s) 链接替换成 [链接]（`miniprogram/utils/mask-links.js`，链接可能带编辑权限、提取用不到）。
+- **小程序前端**（原生框架，单页 `pages/index`）：隐私提示、3000 字上限输入（超长提示并截断）、提取按钮（loading、友好错误 + 重试，不白屏）、结果卡片 6 字段（“未提及”灰色显示、AI 生成提醒）、原文依据默认折叠可展开、复制成文字（截止时间在前、跳过“未提及”行）、反馈（👍/👎 + 可选的“哪里不对”输入 + “允许用于改进”勾选框，默认不勾）。发送前把 http(s) 链接替换成 [链接]（`miniprogram/utils/mask-links.js`，链接可能带编辑权限、提取用不到）。链接只存前端页面内存：输入框下实时提示“检测到 N 个链接，发送前会自动隐藏，不会上传”，结果卡片底部“📎 通知里有 N 个链接”逐条点按复制；不落库、不进 feedback、不写日志，勾选“允许用于改进”时保存的 text 同样是替换后的版本。
 - **云函数 3 个**：
   - `extract`：PROMPT_V05（一字不改复制自 `src/extractor.py` HEAD 5b9fd16，见 `cloudfunctions/extract/prompt.js`）；校验空/超长；每日 30 次限流（`usage_daily`）；调 DeepSeek（temperature 0 / max_tokens 800 / json_object）；解析失败重试 1 次；字段缺失补“未提及”；API Key 只读环境变量 `DEEPSEEK_API_KEY`。
   - `feedback`：服务端强制 `consent===true` 才保存 text/result，不信任前端。
   - `track`：open/extract/copy 白名单，只存事件，不存通知内容。
 - **测试**（均已跑通）：
   - `tests/extract-core.test.js`：11 项单元测试全过（mock DeepSeek，无需 Key/云环境）。
-  - `tests/mask-links.test.js`：9 项单元测试全过（链接遮罩：http/https、查询参数、中英文标点、多链接、无链接等场景）。
+  - `tests/mask-links.test.js`：15 项单元测试全过（链接遮罩与提取：http/https、查询参数、中英文标点、多链接、去重、无链接、发给云函数的文本不含原链接等场景）。
   - `tests/e2e-extract.js`：真实调用 DeepSeek，`data/test2_notices.csv` 第 3/8/10 条验收断言全过（第 3 条双“未提及”；第 8 条 event_time=2026-01-16 15:00、地点含“腾讯会议”；第 10 条 deadline=2026-03-09 17:00）。
 
 **本地提交记录**（都在 main 分支，**均未 push**，由你在 GitHub Desktop 里推送）：
@@ -29,7 +29,8 @@
 | `492f4e7` | 相关性标注；评测脚本支持读取 GBK 文件 |
 | `7731fe7` | 小程序：填入新 AppID 和云开发环境（wx39a710cd5116b6c3 / cloud1-d1gy2jrfu507eee37） |
 | `71d27aa` | 清理误传的旧副本 |
-| `（本次）` | 前端：发送前把 http(s) 链接替换成 [链接]（含单元测试）；更新 HANDOFF 与 README |
+| `f82e36e` | 前端：发送前把 http(s) 链接替换成 [链接]（含单元测试）；更新 HANDOFF 与 README |
+| `（本次）` | 前端：链接列表实时提示与点按复制；feedback 保存替换后的 text（含单元测试）；更新 HANDOFF 与 README |
 
 **注意**：`miniprogram/` 下曾混入 RStudio 的 `.Rhistory`，已加入 .gitignore 且不会提交。
 

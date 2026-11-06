@@ -38,6 +38,12 @@
   color: #e64340;
 }
 
+.link-hint {
+  font-size: 22rpx;
+  color: #b0b0b0;
+  margin-top: 12rpx;
+}
+
 .primary-btn {
   margin-top: 20rpx;
   background: #07c160;
@@ -150,6 +156,26 @@
 
 .copy-btn::after {
   border: none;
+}
+
+.result-links {
+  margin-top: 20rpx;
+  padding-top: 16rpx;
+  border-top: 1rpx solid #f0f0f0;
+}
+
+.result-links-title {
+  font-size: 26rpx;
+  color: #1f1f1f;
+  margin-bottom: 12rpx;
+}
+
+.result-link {
+  font-size: 24rpx;
+  color: #576b95;
+  line-height: 1.6;
+  padding: 8rpx 0;
+  word-break: break-all;
 }
 
 .feedback-title {
