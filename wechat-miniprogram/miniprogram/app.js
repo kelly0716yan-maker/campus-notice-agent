@@ -1,6 +1,6 @@
 // 云开发环境 ID：留空使用账号的默认环境；
 // 如专门为小程序创建了云环境，把环境 ID 填到引号里（形如 cloud1-xxxxxxxx）
-const CLOUD_ENV = '';
+const CLOUD_ENV = 'cloud1-d1gy2jrfu507eee37';
 
 App({
   onLaunch() {
