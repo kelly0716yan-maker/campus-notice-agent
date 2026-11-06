@@ -1,4 +1,5 @@
 const app = getApp();
+const { maskLinks } = require('../../utils/mask-links');
 
 // 云函数错误码 → 友好文案（找不到对应码时用兜底文案）
 const ERROR_MESSAGES = {
@@ -55,9 +56,10 @@ Page({
       feedbackSent: false,
     });
     try {
+      // 发送前把 http(s) 链接替换成 [链接]：链接可能带编辑权限，提取用不到
       const res = await wx.cloud.callFunction({
         name: 'extract',
-        data: { text: this.data.text, today: this.today() },
+        data: { text: maskLinks(this.data.text), today: this.today() },
       });
       const r = res && res.result;
       if (r && r.ok) {

@@ -10,6 +10,7 @@ wechat-miniprogram/
 ├── project.config.json            # 开发者工具项目配置（appid 为占位，导入时填真实 AppID）
 ├── miniprogram/                   # 小程序前端（原生框架，单页）
 │   ├── app.js / app.json / app.wxss / sitemap.json
+│   ├── utils/mask-links.js        # 发送前把 http(s) 链接替换成 [链接]
 │   └── pages/index/               # 唯一页面：输入、提取、结果卡片、复制、反馈
 ├── cloudfunctions/                # 微信云开发云函数
 │   ├── extract/                   # 提取：校验、每日限流、调 DeepSeek、解析重试
@@ -20,6 +21,7 @@ wechat-miniprogram/
 │   └── track/                     # 埋点：open / extract / copy，不存通知内容
 └── tests/
     ├── extract-core.test.js       # 单元测试（mock DeepSeek，无需 Key 和云环境）
+    ├── mask-links.test.js         # 单元测试（链接遮罩，无需微信环境）
     └── e2e-extract.js             # 真实验收测试（test2_notices.csv 第 3/8/10 条，需 API Key）
 ```
 
@@ -28,6 +30,7 @@ wechat-miniprogram/
 ```bash
 cd wechat-miniprogram
 node tests/extract-core.test.js                       # 单元测试
+node tests/mask-links.test.js                         # 单元测试（链接遮罩）
 node --env-file=../.env tests/e2e-extract.js       # 真实调用 DeepSeek 的验收测试（约 3~6 次调用）
 ```
 
@@ -47,5 +50,6 @@ node --env-file=../.env tests/e2e-extract.js       # 真实调用 DeepSeek 的�
 ## 注意事项
 
 - 通知原文不落库：`extract` 只做提取不存储；只有用户勾选「允许用于改进产品」并提交反馈时，`feedback` 云函数才保存原文和结果（服务端强制校验，不信任前端）。
+- 发送给 `extract` 前，通知里的 http(s) 链接会先被替换成 `[链接]`（链接可能带编辑权限，提取用不到它）。
 - 每位用户每天最多提取 30 次（`usage_daily` 集合计数），超限提示「今天的次数用完了，明天再来」。
 - `project.private.config.json`、`node_modules/` 等已在仓库根 `.gitignore` 中忽略；API Key 只存在于云函数环境变量，代码中搜不到。
