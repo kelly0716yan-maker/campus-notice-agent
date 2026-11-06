@@ -146,15 +146,34 @@
   word-break: break-all;
 }
 
-.copy-btn {
+.result-actions {
+  display: flex;
   margin-top: 8rpx;
+}
+
+.copy-btn {
+  flex: 1;
   background: #fff;
   color: #07c160;
   border: 1rpx solid #07c160;
   font-size: 28rpx;
+  margin: 0;
 }
 
 .copy-btn::after {
+  border: none;
+}
+
+.todo-btn {
+  flex: 1;
+  background: #fff;
+  color: #576b95;
+  border: 1rpx solid #576b95;
+  font-size: 28rpx;
+  margin: 0 0 0 16rpx;
+}
+
+.todo-btn::after {
   border: none;
 }
 

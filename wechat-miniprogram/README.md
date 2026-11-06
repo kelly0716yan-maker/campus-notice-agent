@@ -11,17 +11,18 @@ wechat-miniprogram/
 ├── miniprogram/                   # 小程序前端（原生框架，单页）
 │   ├── app.js / app.json / app.wxss / sitemap.json
 │   ├── utils/mask-sensitive.js    # 发送前隐藏链接/邮箱/电话/证件号/会议号/号码等隐私信息
-│   └── pages/index/               # 唯一页面：输入、提取、结果卡片、复制、反馈
+│   └── pages/index/               # 唯一页面：输入、提取、结果卡片、复制、加入待办、反馈
 ├── cloudfunctions/                # 微信云开发云函数
 │   ├── extract/                   # 提取：校验、每日限流、调 DeepSeek、解析重试
 │   │   ├── index.js               # 云函数入口（限流、环境变量、错误映射）
 │   │   ├── core.js                # 核心逻辑（可本地单测）
 │   │   └── prompt.js              # PROMPT_V05，一字不改复制自 src/extractor.py
 │   ├── feedback/                  # 反馈：只有勾选“允许用于改进”才保存原文
-│   └── track/                     # 埋点：open / extract / copy，不存通知内容
+│   └── track/                     # 埋点：open / extract / copy / todo_click，不存通知内容
 └── tests/
     ├── extract-core.test.js       # 单元测试（mock DeepSeek，无需 Key 和云环境）
     ├── mask-sensitive.test.js     # 单元测试（隐私信息隐藏，无需微信环境）
+    ├── track.test.js              # 单元测试（mock wx-server-sdk，无需云环境）
     └── e2e-extract.js             # 真实验收测试（test2_notices.csv 第 3/8/10 条，需 API Key）
 ```
 
@@ -31,6 +32,7 @@ wechat-miniprogram/
 cd wechat-miniprogram
 node tests/extract-core.test.js                       # 单元测试
 node tests/mask-sensitive.test.js                     # 单元测试（隐私信息隐藏）
+node tests/track.test.js                              # 单元测试（埋点云函数）
 node --env-file=../.env tests/e2e-extract.js       # 真实调用 DeepSeek 的验收测试（约 3~6 次调用）
 ```
 

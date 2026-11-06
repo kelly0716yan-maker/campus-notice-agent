@@ -57,7 +57,10 @@
     </view>
     <view class="evidence" wx:if="{{showEvidence}}">{{result.evidence}}</view>
 
-    <button class="copy-btn" bindtap="onCopy">复制成文字</button>
+    <view class="result-actions">
+      <button class="copy-btn" bindtap="onCopy">复制成文字</button>
+      <button class="todo-btn" bindtap="onAddTodo">加入待办</button>
+    </view>
 
     <view class="result-hidden" wx:if="{{resultHidden.length > 0}}">
       <view class="result-hidden-title">📎 通知里被隐藏的内容</view>

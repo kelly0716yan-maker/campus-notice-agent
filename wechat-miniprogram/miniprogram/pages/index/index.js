@@ -129,6 +129,12 @@ Page({
     });
   },
 
+  // “加入待办”功能开发中：先提示并埋点（只记录点击，不记录任何通知内容）
+  onAddTodo() {
+    wx.showToast({ title: '待办功能正在开发中，你的需求我们记下了', icon: 'none' });
+    app.track('todo_click');
+  },
+
   onConsent(e) {
     this.setData({ consent: e.detail.value.length > 0 });
   },
