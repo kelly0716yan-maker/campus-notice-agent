@@ -38,7 +38,7 @@
   color: #e64340;
 }
 
-.link-hint {
+.mask-hint {
   font-size: 22rpx;
   color: #b0b0b0;
   margin-top: 12rpx;
@@ -158,24 +158,29 @@
   border: none;
 }
 
-.result-links {
+.result-hidden {
   margin-top: 20rpx;
   padding-top: 16rpx;
   border-top: 1rpx solid #f0f0f0;
 }
 
-.result-links-title {
+.result-hidden-title {
   font-size: 26rpx;
   color: #1f1f1f;
   margin-bottom: 12rpx;
 }
 
-.result-link {
+.result-hidden-item {
   font-size: 24rpx;
   color: #576b95;
   line-height: 1.6;
   padding: 8rpx 0;
   word-break: break-all;
+}
+
+.result-hidden-type {
+  color: #8a8a8a;
+  margin-right: 12rpx;
 }
 
 .feedback-title {

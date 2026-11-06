@@ -1,5 +1,5 @@
 const app = getApp();
-const { extractLinks, maskLinks } = require('../../utils/mask-links');
+const { maskSensitive, summarizeHidden } = require('../../utils/mask-sensitive');
 
 // 云函数错误码 → 友好文案（找不到对应码时用兜底文案）
 const ERROR_MESSAGES = {
@@ -22,8 +22,8 @@ Page({
     consent: false,
     feedbackSent: false,
     maxLength: 3000,
-    links: [], // 原文里的链接列表：只存页面内存，用于输入框下方提示
-    resultLinks: [], // 提取时链接列表的快照，用于结果卡片展示
+    hiddenSummary: '', // “链接 2 个、电话 1 个”式提示文案（仅存页面内存）
+    resultHidden: [], // 提取时被隐藏内容 [{type, value}] 的快照，用于结果卡片展示
   },
 
   onInput(e) {
@@ -32,8 +32,8 @@ Page({
     if (text.length >= this.data.maxLength && this.data.text.length < this.data.maxLength) {
       wx.showToast({ title: '最多 3000 字，超出部分已截断', icon: 'none' });
     }
-    // 实时检测原文里的链接，仅存页面内存，不发往云函数、不落库
-    this.setData({ text, links: extractLinks(text) });
+    // 实时检测会被自动隐藏的内容，原值仅存页面内存，不发往云函数、不落库
+    this.setData({ text, hiddenSummary: summarizeHidden(maskSensitive(text).hidden) });
   },
 
   // 手机当天的日期，格式 YYYY-MM-DD
@@ -57,21 +57,22 @@ Page({
       showEvidence: false,
       consent: false,
       feedbackSent: false,
-      resultLinks: [],
+      resultHidden: [],
     });
     try {
-      // 发送前把 http(s) 链接替换成 [链接]：链接可能带编辑权限，提取用不到
+      // 发送前把联系方式、链接、学号等替换成占位符，只把替换后的文本发给云函数；
+      // 原值仅存页面内存，不落库、不进 feedback、不写日志
+      const { masked, hidden } = maskSensitive(this.data.text);
       const res = await wx.cloud.callFunction({
         name: 'extract',
-        data: { text: maskLinks(this.data.text), today: this.today() },
+        data: { text: masked, today: this.today() },
       });
       const r = res && res.result;
       if (r && r.ok) {
-        // 链接列表只存页面内存，供结果卡片展示；发给云函数的 text 是替换后的版本
         this.setData({
           result: r.data,
           promptVersion: r.prompt_version || '',
-          resultLinks: extractLinks(this.data.text),
+          resultHidden: hidden,
         });
         app.track('extract');
       } else {
@@ -87,12 +88,12 @@ Page({
     }
   },
 
-  // 点按结果卡片里的链接：复制该链接（链接只在前端内存，不落库、不上传）
-  onCopyLink(e) {
-    const link = e.currentTarget.dataset.link;
-    if (!link) return;
+  // 点按结果卡片里被隐藏的原值：复制该值（原值只在前端内存，不落库、不上传）
+  onCopyHidden(e) {
+    const value = e.currentTarget.dataset.value;
+    if (!value) return;
     wx.setClipboardData({
-      data: link,
+      data: value,
       success: () => {
         wx.showToast({ title: '已复制', icon: 'success' });
       },
@@ -142,9 +143,9 @@ Page({
       prompt_version: this.data.promptVersion,
     };
     // 只有勾选“允许用于改进产品”才随反馈提交原文和结果（云函数侧也会强制校验）
-    // 保存的原文同样是链接替换成 [链接] 的版本，原链接不上传
+    // 保存的原文同样是隐私信息替换成占位符的版本，原值不上传
     if (this.data.consent) {
-      payload.text = maskLinks(this.data.text);
+      payload.text = maskSensitive(this.data.text).masked;
       payload.result = this.data.result;
     }
     try {

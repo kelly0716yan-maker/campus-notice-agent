@@ -1,5 +1,5 @@
 <view class="page">
-  <view class="privacy-hint">请先去掉通知里的姓名、学号、电话等个人信息。</view>
+  <view class="privacy-hint">联系方式、链接、学号等会自动隐藏。通知内容会发送给 AI 模型服务处理。</view>
 
   <view class="card">
     <textarea
@@ -11,7 +11,7 @@
       bindinput="onInput"
     />
     <view class="char-count {{text.length >= maxLength ? 'full' : ''}}">{{text.length}}/{{maxLength}}</view>
-    <view class="link-hint" wx:if="{{links.length > 0}}">检测到 {{links.length}} 个链接，发送前会自动隐藏，不会上传</view>
+    <view class="mask-hint" wx:if="{{hiddenSummary}}">已自动隐藏：{{hiddenSummary}}</view>
     <button
       class="primary-btn"
       bindtap="onExtract"
@@ -59,15 +59,14 @@
 
     <button class="copy-btn" bindtap="onCopy">复制成文字</button>
 
-    <view class="result-links" wx:if="{{resultLinks.length > 0}}">
-      <view class="result-links-title">📎 通知里有 {{resultLinks.length}} 个链接</view>
+    <view class="result-hidden" wx:if="{{resultHidden.length > 0}}">
+      <view class="result-hidden-title">📎 通知里被隐藏的内容</view>
       <view
-        class="result-link"
-        wx:for="{{resultLinks}}"
-        wx:key="*this"
-        data-link="{{item}}"
-        bindtap="onCopyLink"
-      >{{item}}</view>
+        class="result-hidden-item"
+        wx:for="{{resultHidden}}"
+        data-value="{{item.value}}"
+        bindtap="onCopyHidden"
+      ><text class="result-hidden-type">{{item.type}}</text>{{item.value}}</view>
     </view>
   </view>
 
@@ -79,7 +78,7 @@
     </view>
     <label class="consent-row">
       <checkbox checked="{{consent}}" bindchange="onConsent" />
-      <text class="consent-text">允许把这条通知（已去掉个人信息）用于改进产品</text>
+      <text class="consent-text">允许把这条通知（联系方式已自动隐藏）用于改进产品。含学生姓名的请不要勾选。</text>
     </label>
     <view class="thanks" wx:if="{{feedbackSent}}">已收到反馈，谢谢！</view>
   </view>
